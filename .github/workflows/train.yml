@@ -73,20 +73,20 @@ jobs:
 
 | Parameter | Value |
 |-----------|-------|
-| Experiment ID | {best['experiment_id']} |
-| Model Type | {best['model_type']} |
-| MSE | {best['metrics']['mse']:.6f} |
-| R² Score | {best['metrics']['r2_score']:.6f} |
-| Number of Features | {best['num_features']} |
-| Preprocessing | {best['preprocessing']} |
-| Feature Selection | {best['feature_selection']} |
+| Experiment ID | {best["experiment_id"]} |
+| Model Type | {best["model_type"]} |
+| MSE | {best["metrics"]["mse"]:.6f} |
+| R² Score | {best["metrics"]["r2_score"]:.6f} |
+| Number of Features | {best["num_features"]} |
+| Preprocessing | {best["preprocessing"]} |
+| Feature Selection | {best["feature_selection"]} |
 
 ## Dataset Information
-- Total Samples: {best['num_samples']}
-- Training Samples: {best['train_samples']}
-- Test Samples: {best['test_samples']}
+- Total Samples: {best["num_samples"]}
+- Training Samples: {best["train_samples"]}
+- Test Samples: {best["test_samples"]}
 
-**Timestamp:** {best['timestamp']}
+**Timestamp:** {best["timestamp"]}
 """
         
         # Write to GITHUB_STEP_SUMMARY
