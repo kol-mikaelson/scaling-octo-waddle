@@ -32,19 +32,13 @@ jobs:
         python << 'EOF'
         import json
         import os
-        with open('output/results.json', 'r') as f:
+        with open('output/all_results.json', 'r') as f:
             results = json.load(f)
-        print(f"MSE={results['metrics']['mse']:.6f}")
-        print(f"R2={results['metrics']['r2_score']:.6f}")
-        print(f"MODEL={results['model_type']}")
-        print(f"FEATURES={results['num_features']}")
-        
-        # Export as environment variables for GitHub Actions
-        with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-            f.write(f"mse={results['metrics']['mse']:.6f}\n")
-            f.write(f"r2={results['metrics']['r2_score']:.6f}\n")
-            f.write(f"model={results['model_type']}\n")
-            f.write(f"features={results['num_features']}\n")
+        # Get best result (highest R²)
+        best = max(results, key=lambda x: x['metrics']['r2_score'])
+        print(f"Best Model: {best['experiment_id']} - {best['model_type']}")
+        print(f"MSE={best['metrics']['mse']:.6f}")
+        print(f"R2={best['metrics']['r2_score']:.6f}")
         EOF
       
     - name: Create Job Summary
@@ -54,55 +48,46 @@ jobs:
         import os
         
         # Read results
-        with open('output/results.json', 'r') as f:
+        with open('output/all_results.json', 'r') as f:
             results = json.load(f)
         
+        # Build results table
+        table_rows = "| Exp ID | Model Type | MSE | R² Score | Features | Preprocessing |\n"
+        table_rows += "|--------|------------|-----|----------|----------|----------------|\n"
+        
+        for result in results:
+            table_rows += f"| {result['experiment_id']} | {result['model_type']} | {result['metrics']['mse']:.6f} | {result['metrics']['r2_score']:.6f} | {result['num_features']} | {result['preprocessing']} |\n"
+        
+        # Find best model
+        best = max(results, key=lambda x: x['metrics']['r2_score'])
+        
         # Create summary
-        summary = """
-        # Wine Quality Model Training Report
-        
-        **Student Information:**
-        - Roll Number: 2022BCS0179
-        - Name: Purandhar
-        
-        ## Model Configuration
-        
-        | Parameter | Value |
-        |-----------|-------|
-        | Model Type | {model_type} |
-        | Hyperparameters | {hyperparams} |
-        | Preprocessing | {preprocessing} |
-        | Feature Selection | {feature_selection} |
-        | Number of Features | {num_features} |
-        | Test Size | {test_size} |
-        
-        ## Evaluation Metrics
-        
-        | Metric | Value |
-        |--------|-------|
-        | Mean Squared Error (MSE) | {mse:.6f} |
-        | R² Score | {r2:.6f} |
-        
-        ## Dataset Information
-        - Total Samples: {num_samples}
-        - Training Samples: {train_samples}
-        - Test Samples: {test_samples}
-        
-        **Timestamp:** {timestamp}
-        """.format(
-            model_type=results['model_type'],
-            hyperparams=str(results['hyperparameters']),
-            preprocessing=results['preprocessing'],
-            feature_selection=results['feature_selection'],
-            num_features=results['num_features'],
-            test_size=results['test_size'],
-            mse=results['metrics']['mse'],
-            r2=results['metrics']['r2_score'],
-            num_samples=results['num_samples'],
-            train_samples=int(results['num_samples'] * (1 - results['test_size'])),
-            test_samples=int(results['num_samples'] * results['test_size']),
-            timestamp=results['timestamp']
-        )
+        summary = f"""# Wine Quality Model Training Report
+
+
+## All Experiments Results
+
+{table_rows}
+
+## Best Model
+
+| Parameter | Value |
+|-----------|-------|
+| Experiment ID | {best['experiment_id']} |
+| Model Type | {best['model_type']} |
+| MSE | {best['metrics']['mse']:.6f} |
+| R² Score | {best['metrics']['r2_score']:.6f} |
+| Number of Features | {best['num_features']} |
+| Preprocessing | {best['preprocessing']} |
+| Feature Selection | {best['feature_selection']} |
+
+## Dataset Information
+- Total Samples: {best['num_samples']}
+- Training Samples: {best['train_samples']}
+- Test Samples: {best['test_samples']}
+
+**Timestamp:** {best['timestamp']}
+"""
         
         # Write to GITHUB_STEP_SUMMARY
         with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
@@ -115,6 +100,5 @@ jobs:
       with:
         name: model-and-results
         path: |
-          output/model.pkl
-          output/results.json
+          output/all_results.json
         retention-days: 30
