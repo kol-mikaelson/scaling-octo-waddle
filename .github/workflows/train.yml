@@ -26,70 +26,34 @@ jobs:
     - name: Run training script
       run: python train.py
       
-    - name: Read results
-      id: results
-      run: |
-        python << 'EOF'
-        import json
-        import os
-        with open('output/all_results.json', 'r') as f:
-            results = json.load(f)
-        # Get best result (highest R²)
-        best = max(results, key=lambda x: x['metrics']['r2_score'])
-        print(f"Best Model: {best['experiment_id']} - {best['model_type']}")
-        print(f"MSE={best['metrics']['mse']:.6f}")
-        print(f"R2={best['metrics']['r2_score']:.6f}")
-        EOF
-      
     - name: Create Job Summary
       run: |
         python << 'EOF'
         import json
         import os
         
-        # Read results
         with open('output/all_results.json', 'r') as f:
             results = json.load(f)
         
-        # Build results table
-        table_rows = "| Exp ID | Model Type | MSE | R² Score | Features | Preprocessing |\n"
-        table_rows += "|--------|------------|-----|----------|----------|----------------|\n"
-        
-        for result in results:
-            table_rows += f"| {result['experiment_id']} | {result['model_type']} | {result['metrics']['mse']:.6f} | {result['metrics']['r2_score']:.6f} | {result['num_features']} | {result['preprocessing']} |\n"
-        
-        # Find best model
         best = max(results, key=lambda x: x['metrics']['r2_score'])
         
-        # Create summary
-        summary = f"""# Wine Quality Model Training Report
-
-
-## All Experiments Results
-
-{table_rows}
-
-## Best Model
-
-| Parameter | Value |
-|-----------|-------|
-| Experiment ID | {best["experiment_id"]} |
-| Model Type | {best["model_type"]} |
-| MSE | {best["metrics"]["mse"]:.6f} |
-| R² Score | {best["metrics"]["r2_score"]:.6f} |
-| Number of Features | {best["num_features"]} |
-| Preprocessing | {best["preprocessing"]} |
-| Feature Selection | {best["feature_selection"]} |
-
-## Dataset Information
-- Total Samples: {best["num_samples"]}
-- Training Samples: {best["train_samples"]}
-- Test Samples: {best["test_samples"]}
-
-**Timestamp:** {best["timestamp"]}
-"""
+        summary = "# Wine Quality Model Training Report\n\n"
+        summary += "**Student Information:**\n"
+        summary += "- Roll Number: [YOUR_ROLL_NUMBER]\n"
+        summary += "- Name: [YOUR_NAME]\n\n"
         
-        # Write to GITHUB_STEP_SUMMARY
+        summary += "## All Experiments Results\n\n"
+        summary += "| Exp ID | Model Type | MSE | R² Score | Features | Preprocessing |\n"
+        summary += "|--------|------------|-----|----------|----------|----------------|\n"
+        
+        for result in results:
+            summary += f"| {result['experiment_id']} | {result['model_type']} | {result['metrics']['mse']:.6f} | {result['metrics']['r2_score']:.6f} | {result['num_features']} | {result['preprocessing']} |\n"
+        
+        summary += f"\n## Best Model: {best['experiment_id']}\n"
+        summary += f"- Model Type: {best['model_type']}\n"
+        summary += f"- MSE: {best['metrics']['mse']:.6f}\n"
+        summary += f"- R² Score: {best['metrics']['r2_score']:.6f}\n"
+        
         with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
             f.write(summary)
         EOF
@@ -99,6 +63,5 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: model-and-results
-        path: |
-          output/all_results.json
+        path: output/all_results.json
         retention-days: 30
