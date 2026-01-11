@@ -1,0 +1,119 @@
+name: Wine Quality Model Training
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run training script
+      run: python train.py
+      
+    - name: Read results
+      id: results
+      run: |
+        python << 'EOF'
+        import json
+        with open('output/results.json', 'r') as f:
+            results = json.load(f)
+        print(f"MSE={results['metrics']['mse']:.6f}")
+        print(f"R2={results['metrics']['r2_score']:.6f}")
+        print(f"MODEL={results['model_type']}")
+        print(f"FEATURES={results['num_features']}")
+        
+        # Export as environment variables for GitHub Actions
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+            f.write(f"mse={results['metrics']['mse']:.6f}\n")
+            f.write(f"r2={results['metrics']['r2_score']:.6f}\n")
+            f.write(f"model={results['model_type']}\n")
+            f.write(f"features={results['num_features']}\n")
+        EOF
+      
+    - name: Create Job Summary
+      run: |
+        python << 'EOF'
+        import json
+        import os
+        
+        # Read results
+        with open('output/results.json', 'r') as f:
+            results = json.load(f)
+        
+        # Create summary
+        summary = """
+        # Wine Quality Model Training Report
+        
+        **Student Information:**
+        - Roll Number: 2022BCS0179
+        - Name: Purandhar
+        
+        ## Model Configuration
+        
+        | Parameter | Value |
+        |-----------|-------|
+        | Model Type | {model_type} |
+        | Hyperparameters | {hyperparams} |
+        | Preprocessing | {preprocessing} |
+        | Feature Selection | {feature_selection} |
+        | Number of Features | {num_features} |
+        | Test Size | {test_size} |
+        
+        ## Evaluation Metrics
+        
+        | Metric | Value |
+        |--------|-------|
+        | Mean Squared Error (MSE) | {mse:.6f} |
+        | R² Score | {r2:.6f} |
+        
+        ## Dataset Information
+        - Total Samples: {num_samples}
+        - Training Samples: {train_samples}
+        - Test Samples: {test_samples}
+        
+        **Timestamp:** {timestamp}
+        """.format(
+            model_type=results['model_type'],
+            hyperparams=str(results['hyperparameters']),
+            preprocessing=results['preprocessing'],
+            feature_selection=results['feature_selection'],
+            num_features=results['num_features'],
+            test_size=results['test_size'],
+            mse=results['metrics']['mse'],
+            r2=results['metrics']['r2_score'],
+            num_samples=results['num_samples'],
+            train_samples=int(results['num_samples'] * (1 - results['test_size'])),
+            test_samples=int(results['num_samples'] * results['test_size']),
+            timestamp=results['timestamp']
+        )
+        
+        # Write to GITHUB_STEP_SUMMARY
+        with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+            f.write(summary)
+        EOF
+      
+    - name: Upload artifacts
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: model-and-results
+        path: |
+          output/model.pkl
+          output/results.json
+        retention-days: 30
